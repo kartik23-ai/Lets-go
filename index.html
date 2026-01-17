@@ -21,21 +21,22 @@ canvas{display:block}
   left:20px;
   z-index:10;
 }
+#turn{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+}
 .btn{
   width:60px;
   height:60px;
   border-radius:50%;
-  background:rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.25);
   color:white;
   text-align:center;
   line-height:60px;
   font-size:24px;
   margin-bottom:10px;
-}
-#turn{
-  position:fixed;
-  bottom:20px;
-  right:20px;
+  user-select:none;
 }
 </style>
 </head>
@@ -65,7 +66,7 @@ function resize(){
 resize();
 addEventListener("resize", resize);
 
-// MAP (1 = wall)
+// MAP
 const map = [
  [1,1,1,1,1,1,1],
  [1,0,0,0,0,0,1],
@@ -78,28 +79,46 @@ const map = [
 let px=3.5, py=3.5;
 let angle=0;
 
-// GHOST (STATIC FOR NOW)
-const ghost = {x:2.5,y:1.5};
+// GHOST
+const ghost={x:1.5,y:1.5};
 
-// CONTROLS
-up.ontouchstart = ()=>move(0.1);
-down.ontouchstart = ()=>move(-0.1);
-left.ontouchstart = ()=>angle-=0.15;
-right.ontouchstart = ()=>angle+=0.15;
+// CONTROL STATES
+let moveF=false, moveB=false, turnL=false, turnR=false;
 
-function move(speed){
-  px+=Math.cos(angle)*speed;
-  py+=Math.sin(angle)*speed;
-}
+// TOUCH EVENTS (HOLD SYSTEM)
+up.ontouchstart=()=>moveF=true;
+up.ontouchend=()=>moveF=false;
 
-// RENDER
+down.ontouchstart=()=>moveB=true;
+down.ontouchend=()=>moveB=false;
+
+left.ontouchstart=()=>turnL=true;
+left.ontouchend=()=>turnL=false;
+
+right.ontouchstart=()=>turnR=true;
+right.ontouchend=()=>turnR=false;
+
+// GAME LOOP
 function draw(){
+  // MOVEMENT
+  if(moveF){
+    px+=Math.cos(angle)*0.05;
+    py+=Math.sin(angle)*0.05;
+  }
+  if(moveB){
+    px-=Math.cos(angle)*0.05;
+    py-=Math.sin(angle)*0.05;
+  }
+  if(turnL) angle-=0.04;
+  if(turnR) angle+=0.04;
+
   ctx.fillStyle="black";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
   const fov=Math.PI/3;
   const rays=canvas.width;
 
+  // WALL RENDER
   for(let i=0;i<rays;i++){
     const rayAngle=angle-fov/2+fov*i/rays;
     let dist=0;
@@ -109,24 +128,38 @@ function draw(){
       if(map[Math.floor(ry)][Math.floor(rx)]===1) break;
       dist+=0.05;
     }
-
     const h=canvas.height/(dist+0.1);
-    const shade=200/(dist+1);
+    const shade=180/(dist+1);
     ctx.fillStyle=`rgb(${shade},${shade},${shade})`;
     ctx.fillRect(i,canvas.height/2-h/2,1,h);
   }
 
-  // GHOST PROJECTION
-  const dx=ghost.x-px;
-  const dy=ghost.y-py;
-  const dist=Math.hypot(dx,dy);
-  const a=Math.atan2(dy,dx)-angle;
+  // GHOST MOVEMENT (CHASE)
+  const dx=px-ghost.x;
+  const dy=py-ghost.y;
+  const d=Math.hypot(dx,dy);
+  if(d>0.5){
+    ghost.x+=dx/d*0.01;
+    ghost.y+=dy/d*0.01;
+  }
 
-  if(Math.abs(a)<fov/2){
-    const size=canvas.height/dist/2;
-    const x=(a+fov/2)/fov*canvas.width;
-    ctx.fillStyle="rgba(255,255,255,0.7)";
+  // GHOST PROJECTION
+  const gx=ghost.x-px;
+  const gy=ghost.y-py;
+  const gd=Math.hypot(gx,gy);
+  const ga=Math.atan2(gy,gx)-angle;
+
+  if(Math.abs(ga)<fov/2){
+    const size=canvas.height/gd/2;
+    const x=(ga+fov/2)/fov*canvas.width;
+    ctx.fillStyle="rgba(255,255,255,0.8)";
     ctx.fillRect(x-size/2,canvas.height/2-size/2,size,size);
+  }
+
+  // GAME OVER
+  if(gd<0.4){
+    alert("💀 The ghost caught you!");
+    location.reload();
   }
 
   requestAnimationFrame(draw);
