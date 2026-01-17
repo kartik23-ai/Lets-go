@@ -4,74 +4,35 @@
 <meta charset="UTF-8">
 <title>Haunted Memory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-
 <style>
-body{
-  margin:0;
-  background:black;
-  overflow:hidden;
-  touch-action:none;
-  font-family: monospace;
-}
+body{margin:0;background:black;overflow:hidden;font-family:monospace}
 canvas{display:block}
 
-/* STORY SCREEN */
-#story{
-  position:fixed;
-  inset:0;
-  background:black;
-  color:#eee;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:20px;
-  z-index:50;
-}
-#storyText{
-  font-size:18px;
-  line-height:1.6;
-  max-width:500px;
-  animation:fade 2s;
-}
-@keyframes fade{
-  from{opacity:0}
-  to{opacity:1}
-}
-
-/* TAP SCREEN */
-#tap{
-  margin-top:30px;
-  color:#888;
-  font-size:14px;
-}
-
-/* CONTROLS */
+/* UI */
+.btn{width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.25);
+color:#fff;text-align:center;line-height:60px;font-size:22px;user-select:none}
 #controls{position:fixed;bottom:20px;left:20px;z-index:10}
 #turn{position:fixed;bottom:20px;right:20px}
-.btn{
-  width:60px;height:60px;border-radius:50%;
-  background:rgba(255,255,255,0.25);
-  color:white;text-align:center;
-  line-height:60px;font-size:24px;
-  margin-bottom:10px;user-select:none;
-}
+#danger{position:fixed;inset:0;border:0 solid red;pointer-events:none}
 
-/* DANGER BORDER */
-#danger{
-  position:fixed;
-  inset:0;
-  border:0 solid red;
-  pointer-events:none;
-  transition:border 0.2s;
+/* INTRO */
+#intro{
+ position:fixed;inset:0;background:#000;z-index:99;
+ display:flex;align-items:center;justify-content:center;flex-direction:column;
+ color:#eee;text-align:center;padding:20px
 }
+.fire{width:120px;height:120px;border-radius:50%;
+ background:radial-gradient(circle,#ff0,#f00,#000);
+ animation:flicker .3s infinite alternate}
+@keyframes flicker{from{transform:scale(1)}to{transform:scale(1.1)}}
 </style>
 </head>
-
 <body>
 
-<div id="story">
-  <div id="storyText"></div>
+<div id="intro">
+  <div class="fire"></div>
+  <p id="introText"></p>
+  <small>(Tap to continue)</small>
 </div>
 
 <canvas id="game"></canvas>
@@ -81,133 +42,119 @@ canvas{display:block}
   <div class="btn" id="up">▲</div>
   <div class="btn" id="down">▼</div>
 </div>
-
 <div id="turn">
   <div class="btn" id="left">⟲</div>
   <div class="btn" id="right">⟳</div>
 </div>
 
 <script>
-/* ================= STORY ================= */
-const storyLines=[
-  "This house once belonged to a kind man.",
-  "One night, a forbidden ritual took place here.",
-  "He tried to stop it… but failed.",
-  "His body died, but his soul was trapped.",
-  "Now he wanders as a ghost.",
-  "His memories are scattered in this house.",
-  "Find them… and set him free."
+/* ================= INTRO SCENE ================= */
+const introLines=[
+ "He was once a normal man.",
+ "People blamed him for something he never did.",
+ "They locked him inside this house.",
+ "They burned the house with him alive.",
+ "His body died… but his soul stayed.",
+ "Find his memories. Set him free."
 ];
-
-let storyIndex=0;
-const storyDiv=document.getElementById("story");
-const storyText=document.getElementById("storyText");
-
-function showStory(){
-  if(storyIndex<storyLines.length){
-    storyText.innerHTML=storyLines[storyIndex];
-    storyIndex++;
-    setTimeout(showStory,2500);
-  }else{
-    storyText.innerHTML+=
-      "<div id='tap'>Tap to enter the house</div>";
-    storyDiv.onclick=()=>{
-      storyDiv.style.display="none";
-      startGame();
-    };
-  }
+let i=0;
+const intro=document.getElementById("intro");
+const introText=document.getElementById("introText");
+function nextIntro(){
+ if(i<introLines.length){
+   introText.innerText=introLines[i++];
+ }else{
+   intro.remove();
+   startGame();
+ }
 }
-showStory();
+intro.onclick=nextIntro;
+nextIntro();
 
 /* ================= GAME ================= */
 function startGame(){
-
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 const danger=document.getElementById("danger");
 
-function resize(){
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
-}
-resize();
-addEventListener("resize",resize);
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
+resize();addEventListener("resize",resize);
 
-/* MAP */
+/* BIG HOUSE MAP (1=wall, 0=space, 2=door) */
 const map=[
- [1,1,1,1,1,1,1,1,1,1,1],
- [1,0,0,0,1,0,0,0,0,0,1],
- [1,0,0,0,1,0,0,0,0,0,1],
- [1,0,0,0,1,0,0,0,0,0,1],
- [1,1,1,0,1,1,1,0,1,1,1],
- [1,0,0,0,0,0,0,0,0,0,1],
- [1,0,0,0,0,0,0,0,0,0,1],
- [1,0,0,0,1,1,1,0,0,0,1],
- [1,0,0,0,1,0,0,0,0,0,1],
- [1,0,0,0,1,0,0,0,0,0,1],
- [1,1,1,1,1,1,1,1,1,1,1],
+[1,1,1,1,1,1,1,1,1,1,1,1,1],
+[1,0,0,0,1,0,0,0,2,0,0,0,1],
+[1,0,0,0,1,0,0,0,2,0,0,0,1],
+[1,1,1,0,1,1,1,0,1,1,1,0,1],
+[1,0,0,0,0,0,0,0,0,0,0,0,1],
+[1,0,0,0,1,1,1,0,1,1,1,0,1],
+[1,0,0,0,1,0,0,0,2,0,0,0,1],
+[1,0,0,0,1,0,0,0,2,0,0,0,1],
+[1,1,1,1,1,1,1,1,1,1,1,1,1],
 ];
 
 let px=2.5,py=2.5,angle=0;
-const ghost={x:9.5,y:9.5,speed:0.003};
-const memory={x:5.5,y:5.5,collected:false};
-
+const ghost={x:10.5,y:6.5};
 let moveF=false,moveB=false,turnL=false,turnR=false;
 
-up.ontouchstart=()=>moveF=true;
-up.ontouchend=()=>moveF=false;
-down.ontouchstart=()=>moveB=true;
-down.ontouchend=()=>moveB=false;
-left.ontouchstart=()=>turnL=true;
-left.ontouchend=()=>turnL=false;
-right.ontouchstart=()=>turnR=true;
-right.ontouchend=()=>turnR=false;
+/* CONTROLS */
+up.ontouchstart=()=>moveF=true; up.ontouchend=()=>moveF=false;
+down.ontouchstart=()=>moveB=true; down.ontouchend=()=>moveB=false;
+left.ontouchstart=()=>turnL=true; left.ontouchend=()=>turnL=false;
+right.ontouchstart=()=>turnR=true; right.ontouchend=()=>turnR=false;
 
-function isWall(x,y){
-  return map[Math.floor(y)][Math.floor(x)]===1;
-}
+function cell(x,y){return map[Math.floor(y)][Math.floor(x)]}
+function isWall(x,y){return cell(x,y)===1}
 
+/* SOUND (ambient) */
+const audio=new Audio("https://cdn.pixabay.com/audio/2022/10/25/audio_4bfa7c4c1f.mp3");
+audio.loop=true; audio.volume=0.3; audio.play();
+
+/* LOOP */
 function loop(){
-  let nx=px,ny=py;
-  if(moveF){nx+=Math.cos(angle)*0.05;ny+=Math.sin(angle)*0.05;}
-  if(moveB){nx-=Math.cos(angle)*0.05;ny-=Math.sin(angle)*0.05;}
-  if(!isWall(nx,ny)){px=nx;py=ny;}
-  if(turnL)angle-=0.04;
-  if(turnR)angle+=0.04;
+ let nx=px,ny=py;
+ if(moveF){nx+=Math.cos(angle)*.05;ny+=Math.sin(angle)*.05}
+ if(moveB){nx-=Math.cos(angle)*.05;ny-=Math.sin(angle)*.05}
+ if(!isWall(nx,ny)){px=nx;py=ny}
+ if(turnL)angle-=.04;if(turnR)angle+=.04;
 
-  ctx.fillStyle="#111";
-  ctx.fillRect(0,0,canvas.width,canvas.height/2);
-  ctx.fillStyle="#333";
-  ctx.fillRect(0,canvas.height/2,canvas.width,canvas.height/2);
+ ctx.fillStyle="#111";ctx.fillRect(0,0,canvas.width,canvas.height/2);
+ ctx.fillStyle="#333";ctx.fillRect(0,canvas.height/2,canvas.width,canvas.height/2);
 
-  const fov=Math.PI/3;
-  for(let i=0;i<canvas.width;i++){
-    const ra=angle-fov/2+fov*i/canvas.width;
-    let d=0;
-    while(d<20){
-      const rx=px+Math.cos(ra)*d;
-      const ry=py+Math.sin(ra)*d;
-      if(isWall(rx,ry))break;
-      d+=0.05;
-    }
-    const h=canvas.height/(d+0.1);
-    const shade=160/d;
-    ctx.fillStyle=`rgb(${shade},${shade*0.8},${shade*0.6})`;
-    ctx.fillRect(i,canvas.height/2-h/2,1,h);
+ const fov=Math.PI/3;
+ for(let i=0;i<canvas.width;i++){
+  const ra=angle-fov/2+fov*i/canvas.width;
+  let d=0;
+  while(d<20){
+   const rx=px+Math.cos(ra)*d;
+   const ry=py+Math.sin(ra)*d;
+   if(cell(rx,ry)===1)break;
+   d+=.05;
   }
+  const h=canvas.height/(d+.1);
+  ctx.fillStyle=`rgb(${160/d},${120/d},${90/d})`;
+  ctx.fillRect(i,canvas.height/2-h/2,1,h);
+ }
 
-  const dx=px-ghost.x,dy=py-ghost.y;
-  const dist=Math.hypot(dx,dy);
-  ghost.x+=dx/dist*ghost.speed;
-  ghost.y+=dy/dist*ghost.speed;
+ /* GHOST (SHAPE) */
+ const dx=px-ghost.x,dy=py-ghost.y;
+ const dist=Math.hypot(dx,dy);
+ ghost.x+=dx/dist*.002; ghost.y+=dy/dist*.002;
+ const a=Math.atan2(dy,dx)-angle;
+ if(Math.abs(a)<fov/2){
+  const s=canvas.height/dist/2;
+  const x=(a+fov/2)/fov*canvas.width;
+  ctx.fillStyle="rgba(255,255,255,.9)";
+  ctx.beginPath();
+  ctx.arc(x,canvas.height/2,s/3,0,Math.PI*2);
+  ctx.fill();
+ }
 
-  danger.style.border=dist<2?"8px solid red":"0";
-
-  requestAnimationFrame(loop);
+ danger.style.border=dist<2?"10px solid red":"0";
+ requestAnimationFrame(loop);
 }
 loop();
 }
 </script>
-
 </body>
 </html>
