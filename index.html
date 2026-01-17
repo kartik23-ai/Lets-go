@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Haunted House</title>
+<title>Haunted Memory</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <style>
@@ -11,8 +11,40 @@ body{
   background:black;
   overflow:hidden;
   touch-action:none;
+  font-family: monospace;
 }
 canvas{display:block}
+
+/* STORY SCREEN */
+#story{
+  position:fixed;
+  inset:0;
+  background:black;
+  color:#eee;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:20px;
+  z-index:50;
+}
+#storyText{
+  font-size:18px;
+  line-height:1.6;
+  max-width:500px;
+  animation:fade 2s;
+}
+@keyframes fade{
+  from{opacity:0}
+  to{opacity:1}
+}
+
+/* TAP SCREEN */
+#tap{
+  margin-top:30px;
+  color:#888;
+  font-size:14px;
+}
 
 /* CONTROLS */
 #controls{position:fixed;bottom:20px;left:20px;z-index:10}
@@ -24,12 +56,26 @@ canvas{display:block}
   line-height:60px;font-size:24px;
   margin-bottom:10px;user-select:none;
 }
+
+/* DANGER BORDER */
+#danger{
+  position:fixed;
+  inset:0;
+  border:0 solid red;
+  pointer-events:none;
+  transition:border 0.2s;
+}
 </style>
 </head>
 
 <body>
 
+<div id="story">
+  <div id="storyText"></div>
+</div>
+
 <canvas id="game"></canvas>
+<div id="danger"></div>
 
 <div id="controls">
   <div class="btn" id="up">▲</div>
@@ -42,8 +88,43 @@ canvas{display:block}
 </div>
 
 <script>
+/* ================= STORY ================= */
+const storyLines=[
+  "This house once belonged to a kind man.",
+  "One night, a forbidden ritual took place here.",
+  "He tried to stop it… but failed.",
+  "His body died, but his soul was trapped.",
+  "Now he wanders as a ghost.",
+  "His memories are scattered in this house.",
+  "Find them… and set him free."
+];
+
+let storyIndex=0;
+const storyDiv=document.getElementById("story");
+const storyText=document.getElementById("storyText");
+
+function showStory(){
+  if(storyIndex<storyLines.length){
+    storyText.innerHTML=storyLines[storyIndex];
+    storyIndex++;
+    setTimeout(showStory,2500);
+  }else{
+    storyText.innerHTML+=
+      "<div id='tap'>Tap to enter the house</div>";
+    storyDiv.onclick=()=>{
+      storyDiv.style.display="none";
+      startGame();
+    };
+  }
+}
+showStory();
+
+/* ================= GAME ================= */
+function startGame(){
+
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
+const danger=document.getElementById("danger");
 
 function resize(){
   canvas.width=innerWidth;
@@ -52,7 +133,7 @@ function resize(){
 resize();
 addEventListener("resize",resize);
 
-/* HOUSE MAP */
+/* MAP */
 const map=[
  [1,1,1,1,1,1,1,1,1,1,1],
  [1,0,0,0,1,0,0,0,0,0,1],
@@ -67,16 +148,12 @@ const map=[
  [1,1,1,1,1,1,1,1,1,1,1],
 ];
 
-// PLAYER
-let px=2.5, py=2.5, angle=0;
+let px=2.5,py=2.5,angle=0;
+const ghost={x:9.5,y:9.5,speed:0.003};
+const memory={x:5.5,y:5.5,collected:false};
 
-// GHOST
-const ghost={x:8.5,y:8.5};
-
-// CONTROL STATES
 let moveF=false,moveB=false,turnL=false,turnR=false;
 
-// HOLD CONTROLS
 up.ontouchstart=()=>moveF=true;
 up.ontouchend=()=>moveF=false;
 down.ontouchstart=()=>moveB=true;
@@ -90,78 +167,46 @@ function isWall(x,y){
   return map[Math.floor(y)][Math.floor(x)]===1;
 }
 
-function drawFloor(){
-  for(let y=canvas.height/2;y<canvas.height;y+=20){
-    ctx.fillStyle=(y%40===0)?"#444":"#333";
-    ctx.fillRect(0,y,canvas.width,20);
-  }
-}
-
-function draw(){
-  // PLAYER MOVE
-  let nx=px, ny=py;
-  if(moveF){nx+=Math.cos(angle)*0.06;ny+=Math.sin(angle)*0.06;}
-  if(moveB){nx-=Math.cos(angle)*0.06;ny-=Math.sin(angle)*0.06;}
+function loop(){
+  let nx=px,ny=py;
+  if(moveF){nx+=Math.cos(angle)*0.05;ny+=Math.sin(angle)*0.05;}
+  if(moveB){nx-=Math.cos(angle)*0.05;ny-=Math.sin(angle)*0.05;}
   if(!isWall(nx,ny)){px=nx;py=ny;}
-  if(turnL) angle-=0.04;
-  if(turnR) angle+=0.04;
+  if(turnL)angle-=0.04;
+  if(turnR)angle+=0.04;
 
-  // SKY / CEILING
   ctx.fillStyle="#111";
   ctx.fillRect(0,0,canvas.width,canvas.height/2);
-
-  // FLOOR
-  drawFloor();
+  ctx.fillStyle="#333";
+  ctx.fillRect(0,canvas.height/2,canvas.width,canvas.height/2);
 
   const fov=Math.PI/3;
-  const rays=canvas.width;
-
-  // WALLS
-  for(let i=0;i<rays;i++){
-    const rayAngle=angle-fov/2+fov*i/rays;
-    let dist=0;
-    while(dist<20){
-      const rx=px+Math.cos(rayAngle)*dist;
-      const ry=py+Math.sin(rayAngle)*dist;
-      if(isWall(rx,ry)) break;
-      dist+=0.05;
+  for(let i=0;i<canvas.width;i++){
+    const ra=angle-fov/2+fov*i/canvas.width;
+    let d=0;
+    while(d<20){
+      const rx=px+Math.cos(ra)*d;
+      const ry=py+Math.sin(ra)*d;
+      if(isWall(rx,ry))break;
+      d+=0.05;
     }
-
-    const h=canvas.height/(dist+0.1);
-    const shade=Math.max(50,180/dist);
-
-    // WALL PAINT COLOR
+    const h=canvas.height/(d+0.1);
+    const shade=160/d;
     ctx.fillStyle=`rgb(${shade},${shade*0.8},${shade*0.6})`;
     ctx.fillRect(i,canvas.height/2-h/2,1,h);
   }
 
-  // GHOST MOVE
-  const dx=px-ghost.x, dy=py-ghost.y;
-  const d=Math.hypot(dx,dy);
-  ghost.x+=dx/d*0.01;
-  ghost.y+=dy/d*0.01;
+  const dx=px-ghost.x,dy=py-ghost.y;
+  const dist=Math.hypot(dx,dy);
+  ghost.x+=dx/dist*ghost.speed;
+  ghost.y+=dy/dist*ghost.speed;
 
-  // GHOST DRAW
-  const gx=ghost.x-px, gy=ghost.y-py;
-  const gd=Math.hypot(gx,gy);
-  const ga=Math.atan2(gy,gx)-angle;
+  danger.style.border=dist<2?"8px solid red":"0";
 
-  if(Math.abs(ga)<fov/2){
-    const size=canvas.height/gd/2;
-    const x=(ga+fov/2)/fov*canvas.width;
-    ctx.fillStyle="rgba(255,255,255,0.85)";
-    ctx.fillRect(x-size/2,canvas.height/2-size/2,size,size);
-  }
-
-  // GAME OVER
-  if(gd<0.4){
-    alert("💀 Ghost caught you!");
-    location.reload();
-  }
-
-  requestAnimationFrame(draw);
+  requestAnimationFrame(loop);
 }
-draw();
+loop();
+}
 </script>
 
 </body>
