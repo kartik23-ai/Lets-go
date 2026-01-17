@@ -1,160 +1,264 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Haunted Memory</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Kartik ❤️ Kukki</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body{margin:0;background:black;overflow:hidden;font-family:monospace}
-canvas{display:block}
-
-/* UI */
-.btn{width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.25);
-color:#fff;text-align:center;line-height:60px;font-size:22px;user-select:none}
-#controls{position:fixed;bottom:20px;left:20px;z-index:10}
-#turn{position:fixed;bottom:20px;right:20px}
-#danger{position:fixed;inset:0;border:0 solid red;pointer-events:none}
-
-/* INTRO */
-#intro{
- position:fixed;inset:0;background:#000;z-index:99;
- display:flex;align-items:center;justify-content:center;flex-direction:column;
- color:#eee;text-align:center;padding:20px
+body{
+  margin:0;
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(135deg,#ff9a9e,#fad0c4);
+  font-family:'Segoe UI',sans-serif;
+  overflow:hidden;
 }
-.fire{width:120px;height:120px;border-radius:50%;
- background:radial-gradient(circle,#ff0,#f00,#000);
- animation:flicker .3s infinite alternate}
-@keyframes flicker{from{transform:scale(1)}to{transform:scale(1.1)}}
+.card{
+  background:white;
+  padding:26px;
+  border-radius:22px;
+  text-align:center;
+  width:90%;
+  max-width:380px;
+  box-shadow:0 20px 40px rgba(0,0,0,0.2);
+  animation:fade 1.2s ease;
+  position:relative;
+  z-index:2;
+}
+h1{color:#e63946;margin-bottom:16px}
+
+.btns{
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  margin-top:20px;
+  position:relative;
+}
+button{
+  padding:12px 22px;
+  border:none;
+  border-radius:25px;
+  font-size:16px;
+  cursor:pointer;
+}
+.yes{background:#e63946;color:white}
+.no{background:#ddd;color:#333}
+
+/* Hearts */
+.heart{
+  position:absolute;
+  bottom:-20px;
+  font-size:22px;
+  color:#ff4d6d;
+  animation:floatUp linear forwards;
+  pointer-events:none;
+}
+@keyframes floatUp{
+  from{transform:translateY(0) scale(1);opacity:1}
+  to{transform:translateY(-120vh) scale(1.8);opacity:0}
+}
+
+/* Confetti */
+#confetti{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+}
+
+/* Certificate */
+.certificate{
+  background:#fffdf3;
+  border:8px double #c59d5f;
+  border-radius:14px;
+  padding:22px;
+}
+.cert-title{
+  font-family:Georgia,serif;
+  letter-spacing:2px;
+  font-weight:700;
+  color:#7a4a00;
+}
+.cert-line{
+  height:1px;
+  background:#e6d3a3;
+  margin:10px 0;
+}
+.cert-body{
+  color:#333;
+  line-height:1.6;
+}
+.stamp{
+  display:inline-block;
+  margin-top:12px;
+  padding:8px 14px;
+  border:2px solid #c59d5f;
+  border-radius:50%;
+  color:#c59d5f;
+  font-weight:700;
+}
+.sign{
+  display:flex;
+  justify-content:space-between;
+  margin-top:18px;
+  font-size:12px;
+  color:#666;
+}
+
+@keyframes fade{
+  from{opacity:0;transform:scale(.9)}
+  to{opacity:1;transform:scale(1)}
+}
 </style>
 </head>
+
 <body>
 
-<div id="intro">
-  <div class="fire"></div>
-  <p id="introText"></p>
-  <small>(Tap to continue)</small>
-</div>
+<canvas id="confetti"></canvas>
 
-<canvas id="game"></canvas>
-<div id="danger"></div>
+<audio id="music" loop>
+  <source src="_4.mp3" type="audio/mpeg">
+</audio>
 
-<div id="controls">
-  <div class="btn" id="up">▲</div>
-  <div class="btn" id="down">▼</div>
-</div>
-<div id="turn">
-  <div class="btn" id="left">⟲</div>
-  <div class="btn" id="right">⟳</div>
+<div class="card" id="box">
+  <h1>Will you marry me? 💍</h1>
+  <div class="btns">
+    <button class="yes" onclick="yesClick()">YES ❤️</button>
+    <button class="no" id="noBtn">NO 🙈</button>
+  </div>
 </div>
 
 <script>
-/* ================= INTRO SCENE ================= */
-const introLines=[
- "He was once a normal man.",
- "People blamed him for something he never did.",
- "They locked him inside this house.",
- "They burned the house with him alive.",
- "His body died… but his soul stayed.",
- "Find his memories. Set him free."
-];
-let i=0;
-const intro=document.getElementById("intro");
-const introText=document.getElementById("introText");
-function nextIntro(){
- if(i<introLines.length){
-   introText.innerText=introLines[i++];
- }else{
-   intro.remove();
-   startGame();
- }
-}
-intro.onclick=nextIntro;
-nextIntro();
+/* RUNAWAY NO BUTTON */
+const noBtn=document.getElementById("noBtn");
+noBtn.addEventListener("mouseenter",moveNo);
+noBtn.addEventListener("touchstart",moveNo);
 
-/* ================= GAME ================= */
-function startGame(){
-const canvas=document.getElementById("game");
+function moveNo(){
+  const box=document.querySelector(".btns");
+  const x=(Math.random()*120)-60;
+  const y=(Math.random()*60)-30;
+  noBtn.style.transform=`translate(${x}px,${y}px)`;
+}
+
+/* MUSIC + FX */
+const music=document.getElementById("music");
+
+/* PROMISES */
+const promises=[
+  "I will always respect you 💖",
+  "I will stand with you in every situation 🤝",
+  "I will protect your smile 😊",
+  "I will annoy you forever 😜"
+];
+let pIndex=0;
+
+function yesClick(){
+  music.play();
+  startHearts();
+  startConfetti();
+  showPromises();
+}
+
+function showPromises(){
+  const box=document.getElementById("box");
+  box.innerHTML=`
+    <h1>Before becoming my wife…</h1>
+    <p>I promise you 💖</p>
+    <p id="pText"></p>
+  `;
+  const pText=document.getElementById("pText");
+  (function next(){
+    if(pIndex<promises.length){
+      pText.innerHTML=promises[pIndex++];
+      setTimeout(next,1600);
+    }else{
+      pText.innerHTML+=`
+        <br><br>
+        <button class="yes" onclick="showCertificate()">Accept ❤️</button>
+      `;
+    }
+  })();
+}
+
+/* CERTIFICATE */
+function showCertificate(){
+  document.getElementById("box").innerHTML=`
+    <div class="certificate">
+      <div class="cert-title">MARRIAGE CERTIFICATE</div>
+      <div class="cert-line"></div>
+      <div class="cert-body">
+        This certifies that<br><br>
+        <b>Kukki</b> 💖<br>
+        and<br>
+        <b>Kartik</b><br><br>
+        are joyfully united in love.<br><br>
+        <b>Congratulations 💐</b><br>
+        From this moment,<br>
+        you are my forever ❤️<br><br>
+        <span style="color:#e63946">my pookie champ 💖</span>
+      </div>
+      <div class="stamp">APPROVED</div>
+      <div class="sign">
+        <div>Groom: Kartik</div>
+        <div>Date: Today</div>
+        <div>Bride: Kukki</div>
+      </div>
+    </div>
+  `;
+}
+
+/* HEARTS */
+function startHearts(){
+  setInterval(()=>{
+    const h=document.createElement("div");
+    h.className="heart";
+    h.innerHTML="❤️";
+    h.style.left=Math.random()*100+"vw";
+    const d=4+Math.random()*3;
+    h.style.animationDuration=d+"s";
+    document.body.appendChild(h);
+    setTimeout(()=>h.remove(),d*1000);
+  },300);
+}
+
+/* CONFETTI */
+const canvas=document.getElementById("confetti");
 const ctx=canvas.getContext("2d");
-const danger=document.getElementById("danger");
-
-function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
-resize();addEventListener("resize",resize);
-
-/* BIG HOUSE MAP (1=wall, 0=space, 2=door) */
-const map=[
-[1,1,1,1,1,1,1,1,1,1,1,1,1],
-[1,0,0,0,1,0,0,0,2,0,0,0,1],
-[1,0,0,0,1,0,0,0,2,0,0,0,1],
-[1,1,1,0,1,1,1,0,1,1,1,0,1],
-[1,0,0,0,0,0,0,0,0,0,0,0,1],
-[1,0,0,0,1,1,1,0,1,1,1,0,1],
-[1,0,0,0,1,0,0,0,2,0,0,0,1],
-[1,0,0,0,1,0,0,0,2,0,0,0,1],
-[1,1,1,1,1,1,1,1,1,1,1,1,1],
-];
-
-let px=2.5,py=2.5,angle=0;
-const ghost={x:10.5,y:6.5};
-let moveF=false,moveB=false,turnL=false,turnR=false;
-
-/* CONTROLS */
-up.ontouchstart=()=>moveF=true; up.ontouchend=()=>moveF=false;
-down.ontouchstart=()=>moveB=true; down.ontouchend=()=>moveB=false;
-left.ontouchstart=()=>turnL=true; left.ontouchend=()=>turnL=false;
-right.ontouchstart=()=>turnR=true; right.ontouchend=()=>turnR=false;
-
-function cell(x,y){return map[Math.floor(y)][Math.floor(x)]}
-function isWall(x,y){return cell(x,y)===1}
-
-/* SOUND (ambient) */
-const audio=new Audio("https://cdn.pixabay.com/audio/2022/10/25/audio_4bfa7c4c1f.mp3");
-audio.loop=true; audio.volume=0.3; audio.play();
-
-/* LOOP */
-function loop(){
- let nx=px,ny=py;
- if(moveF){nx+=Math.cos(angle)*.05;ny+=Math.sin(angle)*.05}
- if(moveB){nx-=Math.cos(angle)*.05;ny-=Math.sin(angle)*.05}
- if(!isWall(nx,ny)){px=nx;py=ny}
- if(turnL)angle-=.04;if(turnR)angle+=.04;
-
- ctx.fillStyle="#111";ctx.fillRect(0,0,canvas.width,canvas.height/2);
- ctx.fillStyle="#333";ctx.fillRect(0,canvas.height/2,canvas.width,canvas.height/2);
-
- const fov=Math.PI/3;
- for(let i=0;i<canvas.width;i++){
-  const ra=angle-fov/2+fov*i/canvas.width;
-  let d=0;
-  while(d<20){
-   const rx=px+Math.cos(ra)*d;
-   const ry=py+Math.sin(ra)*d;
-   if(cell(rx,ry)===1)break;
-   d+=.05;
-  }
-  const h=canvas.height/(d+.1);
-  ctx.fillStyle=`rgb(${160/d},${120/d},${90/d})`;
-  ctx.fillRect(i,canvas.height/2-h/2,1,h);
- }
-
- /* GHOST (SHAPE) */
- const dx=px-ghost.x,dy=py-ghost.y;
- const dist=Math.hypot(dx,dy);
- ghost.x+=dx/dist*.002; ghost.y+=dy/dist*.002;
- const a=Math.atan2(dy,dx)-angle;
- if(Math.abs(a)<fov/2){
-  const s=canvas.height/dist/2;
-  const x=(a+fov/2)/fov*canvas.width;
-  ctx.fillStyle="rgba(255,255,255,.9)";
-  ctx.beginPath();
-  ctx.arc(x,canvas.height/2,s/3,0,Math.PI*2);
-  ctx.fill();
- }
-
- danger.style.border=dist<2?"10px solid red":"0";
- requestAnimationFrame(loop);
+function resize(){
+  canvas.width=innerWidth;
+  canvas.height=innerHeight;
 }
-loop();
+resize();
+addEventListener("resize",resize);
+
+let conf=[];
+function startConfetti(){
+  for(let i=0;i<180;i++){
+    conf.push({
+      x:Math.random()*canvas.width,
+      y:Math.random()*-canvas.height,
+      r:Math.random()*6+4,
+      c:`hsl(${Math.random()*360},100%,60%)`,
+      s:Math.random()*3+2
+    });
+  }
+  (function anim(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    conf.forEach(p=>{
+      ctx.fillStyle=p.c;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+      p.y+=p.s;
+    });
+    requestAnimationFrame(anim);
+  })();
 }
 </script>
+
 </body>
 </html>
