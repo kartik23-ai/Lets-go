@@ -6,31 +6,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <style>
-body {
-  margin: 0;
-  background: black;
-  overflow: hidden;
-  touch-action: none;
+body{
+  margin:0;
+  background:black;
+  overflow:hidden;
+  touch-action:none;
 }
-canvas {
-  display: block;
+canvas{display:block}
+
+/* CONTROLS */
+#controls{
+  position:fixed;
+  bottom:20px;
+  left:20px;
+  z-index:10;
 }
-#ui {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  z-index: 10;
+.btn{
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.2);
+  color:white;
+  text-align:center;
+  line-height:60px;
+  font-size:24px;
+  margin-bottom:10px;
 }
-.btn {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.2);
-  color: white;
-  text-align: center;
-  line-height: 60px;
-  font-size: 24px;
-  margin-bottom: 10px;
+#turn{
+  position:fixed;
+  bottom:20px;
+  right:20px;
 }
 </style>
 </head>
@@ -39,9 +44,14 @@ canvas {
 
 <canvas id="game"></canvas>
 
-<div id="ui">
+<div id="controls">
   <div class="btn" id="up">▲</div>
   <div class="btn" id="down">▼</div>
+</div>
+
+<div id="turn">
+  <div class="btn" id="left">⟲</div>
+  <div class="btn" id="right">⟳</div>
 </div>
 
 <script>
@@ -57,49 +67,66 @@ addEventListener("resize", resize);
 
 // MAP (1 = wall)
 const map = [
-  [1,1,1,1,1,1,1],
-  [1,0,0,0,0,0,1],
-  [1,0,0,0,0,0,1],
-  [1,0,0,0,0,0,1],
-  [1,1,1,1,1,1,1],
+ [1,1,1,1,1,1,1],
+ [1,0,0,0,0,0,1],
+ [1,0,0,0,0,0,1],
+ [1,0,0,0,0,0,1],
+ [1,1,1,1,1,1,1],
 ];
 
 // PLAYER
-let px = 3.5, py = 3.5;
-let angle = 0;
+let px=3.5, py=3.5;
+let angle=0;
+
+// GHOST (STATIC FOR NOW)
+const ghost = {x:2.5,y:1.5};
 
 // CONTROLS
-document.getElementById("up").ontouchstart = () => move(0.1);
-document.getElementById("down").ontouchstart = () => move(-0.1);
+up.ontouchstart = ()=>move(0.1);
+down.ontouchstart = ()=>move(-0.1);
+left.ontouchstart = ()=>angle-=0.15;
+right.ontouchstart = ()=>angle+=0.15;
 
 function move(speed){
-  px += Math.cos(angle) * speed;
-  py += Math.sin(angle) * speed;
+  px+=Math.cos(angle)*speed;
+  py+=Math.sin(angle)*speed;
 }
 
 // RENDER
 function draw(){
-  ctx.fillStyle = "black";
+  ctx.fillStyle="black";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  const fov = Math.PI / 3;
-  const rays = canvas.width;
+  const fov=Math.PI/3;
+  const rays=canvas.width;
 
   for(let i=0;i<rays;i++){
-    const rayAngle = angle - fov/2 + fov*i/rays;
-    let dist = 0;
-
-    while(dist < 20){
-      const rx = px + Math.cos(rayAngle)*dist;
-      const ry = py + Math.sin(rayAngle)*dist;
-
-      if(map[Math.floor(ry)][Math.floor(rx)] === 1) break;
-      dist += 0.05;
+    const rayAngle=angle-fov/2+fov*i/rays;
+    let dist=0;
+    while(dist<20){
+      const rx=px+Math.cos(rayAngle)*dist;
+      const ry=py+Math.sin(rayAngle)*dist;
+      if(map[Math.floor(ry)][Math.floor(rx)]===1) break;
+      dist+=0.05;
     }
 
-    const wallHeight = canvas.height / (dist+0.1);
-    ctx.fillStyle = `rgb(${200/dist},${200/dist},${200/dist})`;
-    ctx.fillRect(i, canvas.height/2 - wallHeight/2, 1, wallHeight);
+    const h=canvas.height/(dist+0.1);
+    const shade=200/(dist+1);
+    ctx.fillStyle=`rgb(${shade},${shade},${shade})`;
+    ctx.fillRect(i,canvas.height/2-h/2,1,h);
+  }
+
+  // GHOST PROJECTION
+  const dx=ghost.x-px;
+  const dy=ghost.y-py;
+  const dist=Math.hypot(dx,dy);
+  const a=Math.atan2(dy,dx)-angle;
+
+  if(Math.abs(a)<fov/2){
+    const size=canvas.height/dist/2;
+    const x=(a+fov/2)/fov*canvas.width;
+    ctx.fillStyle="rgba(255,255,255,0.7)";
+    ctx.fillRect(x-size/2,canvas.height/2-size/2,size,size);
   }
 
   requestAnimationFrame(draw);
