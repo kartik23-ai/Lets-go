@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Haunted Memory</title>
+<title>Haunted House</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 
 <style>
@@ -15,28 +15,14 @@ body{
 canvas{display:block}
 
 /* CONTROLS */
-#controls{
-  position:fixed;
-  bottom:20px;
-  left:20px;
-  z-index:10;
-}
-#turn{
-  position:fixed;
-  bottom:20px;
-  right:20px;
-}
+#controls{position:fixed;bottom:20px;left:20px;z-index:10}
+#turn{position:fixed;bottom:20px;right:20px}
 .btn{
-  width:60px;
-  height:60px;
-  border-radius:50%;
+  width:60px;height:60px;border-radius:50%;
   background:rgba(255,255,255,0.25);
-  color:white;
-  text-align:center;
-  line-height:60px;
-  font-size:24px;
-  margin-bottom:10px;
-  user-select:none;
+  color:white;text-align:center;
+  line-height:60px;font-size:24px;
+  margin-bottom:10px;user-select:none;
 }
 </style>
 </head>
@@ -56,109 +42,120 @@ canvas{display:block}
 </div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
 function resize(){
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
+  canvas.width=innerWidth;
+  canvas.height=innerHeight;
 }
 resize();
-addEventListener("resize", resize);
+addEventListener("resize",resize);
 
-// MAP
-const map = [
- [1,1,1,1,1,1,1],
- [1,0,0,0,0,0,1],
- [1,0,0,0,0,0,1],
- [1,0,0,0,0,0,1],
- [1,1,1,1,1,1,1],
+/* HOUSE MAP */
+const map=[
+ [1,1,1,1,1,1,1,1,1,1,1],
+ [1,0,0,0,1,0,0,0,0,0,1],
+ [1,0,0,0,1,0,0,0,0,0,1],
+ [1,0,0,0,1,0,0,0,0,0,1],
+ [1,1,1,0,1,1,1,0,1,1,1],
+ [1,0,0,0,0,0,0,0,0,0,1],
+ [1,0,0,0,0,0,0,0,0,0,1],
+ [1,0,0,0,1,1,1,0,0,0,1],
+ [1,0,0,0,1,0,0,0,0,0,1],
+ [1,0,0,0,1,0,0,0,0,0,1],
+ [1,1,1,1,1,1,1,1,1,1,1],
 ];
 
 // PLAYER
-let px=3.5, py=3.5;
-let angle=0;
+let px=2.5, py=2.5, angle=0;
 
 // GHOST
-const ghost={x:1.5,y:1.5};
+const ghost={x:8.5,y:8.5};
 
 // CONTROL STATES
-let moveF=false, moveB=false, turnL=false, turnR=false;
+let moveF=false,moveB=false,turnL=false,turnR=false;
 
-// TOUCH EVENTS (HOLD SYSTEM)
+// HOLD CONTROLS
 up.ontouchstart=()=>moveF=true;
 up.ontouchend=()=>moveF=false;
-
 down.ontouchstart=()=>moveB=true;
 down.ontouchend=()=>moveB=false;
-
 left.ontouchstart=()=>turnL=true;
 left.ontouchend=()=>turnL=false;
-
 right.ontouchstart=()=>turnR=true;
 right.ontouchend=()=>turnR=false;
 
-// GAME LOOP
+function isWall(x,y){
+  return map[Math.floor(y)][Math.floor(x)]===1;
+}
+
+function drawFloor(){
+  for(let y=canvas.height/2;y<canvas.height;y+=20){
+    ctx.fillStyle=(y%40===0)?"#444":"#333";
+    ctx.fillRect(0,y,canvas.width,20);
+  }
+}
+
 function draw(){
-  // MOVEMENT
-  if(moveF){
-    px+=Math.cos(angle)*0.05;
-    py+=Math.sin(angle)*0.05;
-  }
-  if(moveB){
-    px-=Math.cos(angle)*0.05;
-    py-=Math.sin(angle)*0.05;
-  }
+  // PLAYER MOVE
+  let nx=px, ny=py;
+  if(moveF){nx+=Math.cos(angle)*0.06;ny+=Math.sin(angle)*0.06;}
+  if(moveB){nx-=Math.cos(angle)*0.06;ny-=Math.sin(angle)*0.06;}
+  if(!isWall(nx,ny)){px=nx;py=ny;}
   if(turnL) angle-=0.04;
   if(turnR) angle+=0.04;
 
-  ctx.fillStyle="black";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  // SKY / CEILING
+  ctx.fillStyle="#111";
+  ctx.fillRect(0,0,canvas.width,canvas.height/2);
+
+  // FLOOR
+  drawFloor();
 
   const fov=Math.PI/3;
   const rays=canvas.width;
 
-  // WALL RENDER
+  // WALLS
   for(let i=0;i<rays;i++){
     const rayAngle=angle-fov/2+fov*i/rays;
     let dist=0;
     while(dist<20){
       const rx=px+Math.cos(rayAngle)*dist;
       const ry=py+Math.sin(rayAngle)*dist;
-      if(map[Math.floor(ry)][Math.floor(rx)]===1) break;
+      if(isWall(rx,ry)) break;
       dist+=0.05;
     }
+
     const h=canvas.height/(dist+0.1);
-    const shade=180/(dist+1);
-    ctx.fillStyle=`rgb(${shade},${shade},${shade})`;
+    const shade=Math.max(50,180/dist);
+
+    // WALL PAINT COLOR
+    ctx.fillStyle=`rgb(${shade},${shade*0.8},${shade*0.6})`;
     ctx.fillRect(i,canvas.height/2-h/2,1,h);
   }
 
-  // GHOST MOVEMENT (CHASE)
-  const dx=px-ghost.x;
-  const dy=py-ghost.y;
+  // GHOST MOVE
+  const dx=px-ghost.x, dy=py-ghost.y;
   const d=Math.hypot(dx,dy);
-  if(d>0.5){
-    ghost.x+=dx/d*0.01;
-    ghost.y+=dy/d*0.01;
-  }
+  ghost.x+=dx/d*0.01;
+  ghost.y+=dy/d*0.01;
 
-  // GHOST PROJECTION
-  const gx=ghost.x-px;
-  const gy=ghost.y-py;
+  // GHOST DRAW
+  const gx=ghost.x-px, gy=ghost.y-py;
   const gd=Math.hypot(gx,gy);
   const ga=Math.atan2(gy,gx)-angle;
 
   if(Math.abs(ga)<fov/2){
     const size=canvas.height/gd/2;
     const x=(ga+fov/2)/fov*canvas.width;
-    ctx.fillStyle="rgba(255,255,255,0.8)";
+    ctx.fillStyle="rgba(255,255,255,0.85)";
     ctx.fillRect(x-size/2,canvas.height/2-size/2,size,size);
   }
 
   // GAME OVER
   if(gd<0.4){
-    alert("💀 The ghost caught you!");
+    alert("💀 Ghost caught you!");
     location.reload();
   }
 
